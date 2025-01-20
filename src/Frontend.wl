@@ -37,6 +37,10 @@ apiCall[request_, "/api/frontendobjects/get/"] := With[{uid = ImportString[ByteA
 
 ]
 
+apiCall[request_, "/api/frontendobjects/list/"] := With[{uid = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]["UId"]},
+
+]
+
 
 apiCall[request_, "/api/transactions/"] := {
     "/api/transactions/create/",
@@ -88,8 +92,7 @@ apiCall[request_, "/api/transactions/list/"] := With[{},
     },
             <|
                 "Hash" -> #["Hash"],
-                "State" -> If[StringQ[#["State"] ], #["State"], "Undefined" ],
-                "Result" -> If[ListQ[#["Result"] ], #["Result"], {} ]
+                "State" -> If[StringQ[#["State"] ], #["State"], "Undefined" ]
             |>& /@ transactions
     ]
 ]
