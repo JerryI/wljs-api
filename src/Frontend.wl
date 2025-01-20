@@ -39,15 +39,64 @@ apiCall[request_, "/api/frontendobjects/get/"] := With[{uid = ImportString[ByteA
 
 apiCall[request_, "/api/transactions/"] := {
     "/api/transactions/create/",
-    "/api/transactions/submit/",
     "/api/transactions/get/",
     "/api/transactions/delete/",
     "/api/transactions/list/"
 }
 
+transactions = {};
 
+apiCall[request_, "/api/transactions/create/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    With[{
+        k = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Kernel"]) &]
+    },
+        If[MissingQ[k], $Failed,
+            submitTransaction[body["Data"], k];
+            True
+        ]
+    ]
+]
 
-submitTransaction[t_, kernel_] := With[{transaction = Transaction[]},
+apiCall[request_, "/api/transactions/delete/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    With[{
+        m = SelectFirst[transactions, (#["Hash"] === body["Hash"]) &]
+    },
+        If[MissingQ[m], $Failed,
+            transactions = transactions /. {m -> Nothing};
+            True
+        ]
+    ]
+]
+
+apiCall[request_, "/api/transactions/get/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    With[{
+        m = SelectFirst[transactions, (#["Hash"] === body["Hash"]) &]
+    },
+        If[MissingQ[m], $Failed,
+            <|
+                "Hash" -> #["Hash"],
+                "State" -> If[StringQ[#["State"] ], #["State"], "Undefined" ],
+                "Result" -> If[ListQ[#["Result"] ], #["Result"], {} ]
+            |>&@m
+        ]
+    ]
+]
+
+apiCall[request_, "/api/transactions/list/"] := With[{},
+    With[{
+        
+    },
+            <|
+                "Hash" -> #["Hash"],
+                "State" -> If[StringQ[#["State"] ], #["State"], "Undefined" ],
+                "Result" -> If[ListQ[#["Result"] ], #["Result"], {} ]
+            |>& /@ transactions
+    ]
+]
+
+submitTransaction[data_String, kernel_] := With[{transaction = Transaction[]},
+   transactions = Append[transactions, transaction];
+   transaction["Data"] = data;
    transaction["State"] = "Evaluation";
    transaction["Result"] = {};   
    transaction["EvaluationContext"] = <||>;
@@ -126,17 +175,12 @@ apiCall[request_, "/api/kernels/restart/"] := With[{body = ImportString[ByteArra
     ]
 ];
 
-apiCall[request_, "/api/kernels/create/"] := With[{},
-    Kernel`Restart[m];
+apiCall[request_, "/api/kernels/create/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    "Not implemented"
 ];
 
 apiCall[request_, "/api/kernels/unlink/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
-    With[{m = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Hash"]) &]},
-        If[MissingQ[m], $Failed,
-            Kernel`Unlink[m];
-            True
-        ]
-    ]
+    "Not implemented"
 ];
 
 apiCall[request_, "/api/kernels/abort/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
@@ -151,7 +195,7 @@ apiCall[request_, "/api/kernels/abort/"] := With[{body = ImportString[ByteArrayT
 apiCall[request_, "/api/kernels/init/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     With[{m = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Hash"]) &]},
         If[MissingQ[m], $Failed,
-            initializeKernel[m];
+            initKernel[<|"env" -> $Env|>][m];
             True
         ]
     ]
@@ -160,50 +204,13 @@ apiCall[request_, "/api/kernels/init/"] := With[{body = ImportString[ByteArrayTo
 apiCall[request_, "/api/kernels/deinit/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     With[{m = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Hash"]) &]},
         If[MissingQ[m], $Failed,
-            deinitializeKernel[m];
+            deinitKernel[m];
             True
         ]
     ]
 ];
 
-initializeKernel[kernel_] := With[{
-  wsPort = $Env["ws2"], 
-},
-  Print["Init Kernel!!!"];
-
-  (* load kernel packages and provide remote path *)
-  With[{
-    p = Import[FileNameJoin[{"wljs_packages", #}], "String"], 
-    path = ToString[URLBuild[<|"Scheme" -> "http", "Domain" -> (StringTemplate["``:``"][With[{h =  $Env["host"]}, If[h === "0.0.0.0", "127.0.0.1", h] ], $Env["http"] ]), "Path" -> StringRiffle[Drop[FileNameSplit[#], -2], "/"]|> ], InputForm],
-    dir = FileNameJoin[{Directory[], "wljs_packages", #}]
-  },
-    Echo[StringJoin["Loading into Kernel... ", #] ];
-    Echo[kernel];
-    Echo[kernel["LTPSocket"] ];
-    
-    (*fixme apply post-processor for remote paths*)
-    With[{processed = StringReplace[p, "$RemotePackageDirectory" -> ("Internal`RemoteFS["<>path<>"]")]},      
-      Kernel`Async[kernel,  ToExpression[processed, InputForm] ](*`*);
-    ];
-
-  ] &/@ WLJS`PM`Includes["kernel"];
-
-  kernel["Container"] = StandardEvaluator`Container[kernel](*`*);
-  kernel["ContainerReadyQ"] = True;
-
-  kernel["State"] = "Initialized";
-
-  With[{hash = kernel["Hash"]},
-    Kernel`Init[kernel,  EventFire[Internal`Kernel`Stdout[ hash ], "State", "Initialized" ]; ];
-  ];
-]
-
-deinitializeKernel[kernel_] := With[{},
-  Echo["Cleaning up..."];
-
-  kernel["ContainerReadyQ"] = False;
-  kernel["WebSocket"] = .;
-]
+{deinitKernel, initKernel}           = ImportComponent["KernelUtils.wl"];
 
 
 With[{http = AppExtensions`HTTPHandler},
