@@ -26,6 +26,12 @@ apiCall[request_] := With[{type = request["Path"]},
 
 apiCall[_, _] := "Undefined API pattern"
 
+apiCall[request_, "/api/"] := {
+    "/api/kernels/",
+    "/api/transactions/",
+    "/api/frontendobjects/",
+    "/api/extensions/"
+}
 
 apiCall[request_, "/api/frontendobjects/"] := {
     "/api/frontendobjects/get/"
