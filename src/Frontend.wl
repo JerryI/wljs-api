@@ -14,10 +14,14 @@ Begin["`Internal`"]
 
 apiCall[request_] := With[{type = request["Path"]},
     Echo["API Request >> "<>type];
-    apiCall[request, type]
+    Echo[ToString[request, StandardForm] ];
+
+    ExportString[apiCall[request, type], "JSON"]
 ]
 
-apiCall[_, _] := "Hey Buddy";
+apiCall[request_, "/api/kernels"~~___] := With[{},
+    "Hey There"
+];
 
 
 With[{http = AppExtensions`HTTPHandler},
