@@ -28,17 +28,43 @@ apiCall[_, _] := "Undefined API pattern"
 
 
 apiCall[request_, "/api/frontendobjects/"] := {
-    "/api/frontendobjects/get/",
-    "/api/frontendobjects/list/"
+    "/api/frontendobjects/get/"
 }
 
+objects = <||>;
 
-apiCall[request_, "/api/frontendobjects/get/"] := With[{uid = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]["UId"]},
+apiCall[request_, "/api/frontendobjects/get/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    With[{
+        k = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Kernel"]) &],
+        uid = body["UId"],
+        promise = Promise[]
+    },
+        If[!KeyExistsQ[objects, uid],
+            If[MissingQ[k], $Failed, 
+                With[{
+                    promiseId = promise // First
+                },
+                    Kernel`Async[k, With[{o = Notebook`Editor`FrontendObject`GetObject[uid]},
+                            EventFire[Internal`Kernel`Stdout[promiseId], Resolve, ExportString[o, "ExpressionJSON"] ];
+                        ]
+                    ];
+                ];
 
-]
+                objects[uid] = <|"Resolved" -> False|>;
 
-apiCall[request_, "/api/frontendobjects/list/"] := With[{uid = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]["UId"]},
+                Then[promise, Function[data,
+                    objects[uid] = Join[objects[uid], <|"Resolved" -> True,
+                                                        "Data" -> data|>
+                    ];
+                ] ];
 
+                objects[uid]
+
+            ]
+        ,
+            objects[uid]
+        ]
+    ]    
 ]
 
 
@@ -215,6 +241,36 @@ apiCall[request_, "/api/kernels/deinit/"] := With[{body = ImportString[ByteArray
 ];
 
 {deinitKernel, initKernel}           = ImportComponent["KernelUtils.wl"];
+
+
+apiCall[request_, "/api/extensions/"] := {
+    "/api/extensions/list/",
+    "/api/extensions/get/js/",
+    "/api/extensions/get/styles/"
+}
+
+apiCall[request_, "/api/extensions/list/"] := With[{},
+    Map[Function[key, 
+        <|"name" -> key, "version" -> WLJS`PM`Packages[#, "version"]|>
+    ], 
+        Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &] 
+    ]
+]
+
+pmIncludes[param_, whitelist_List] := 
+Table[ 
+    Table[ 
+      FileNameJoin[{WLJS`PM`Packages[i, "name"], StringSplit[j, "/"]} // Flatten]
+    , {j, {WLJS`PM`Packages[i, "wljs-meta", param]} // Flatten} ]
+, {i, Select[WLJS`PM`Packages // Keys, (MemberQ[whitelist, #] && WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], param])&]}] // Flatten;
+
+apiCall[request_, "/api/extensions/get/js/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    pmIncludes["js", Flatten[{body["name"]}] ]
+]
+
+apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    pmIncludes["styles", Flatten[{body["name"]}] ]
+]
 
 
 With[{http = AppExtensions`HTTPHandler},
