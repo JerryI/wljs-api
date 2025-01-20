@@ -26,12 +26,23 @@ apiCall[request_] := With[{type = request["Path"]},
 apiCall[_, _] := "Undefined API pattern"
 
 
+apiCall[request_, "/api/frontendobjects/"] := {
+    "/api/frontendobjects/get/",
+    "/api/frontendobjects/list/"
+}
+
+
+apiCall[request_, "/api/frontendobjects/get/"] := With[{uid = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]["UId"]},
+
+]
+
+
 apiCall[request_, "/api/transactions/"] := {
-    "/api/transactions/create",
-    "/api/transactions/submit",
-    "/api/transactions/get",
-    "/api/transactions/delete",
-    "/api/transactions/list"
+    "/api/transactions/create/",
+    "/api/transactions/submit/",
+    "/api/transactions/get/",
+    "/api/transactions/delete/",
+    "/api/transactions/list/"
 }
 
 
