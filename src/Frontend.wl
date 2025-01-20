@@ -251,7 +251,7 @@ apiCall[request_, "/api/kernels/deinit/"] := With[{body = ImportString[ByteArray
 
 apiCall[request_, "/api/extensions/"] := {
     "/api/extensions/list/",
-    "/api/extensions/get/js/",
+    "/api/extensions/get/minjs/",
     "/api/extensions/get/styles/"
 }
 
@@ -270,8 +270,8 @@ Table[
     , {j, {WLJS`PM`Packages[i, "wljs-meta", param]} // Flatten} ]
 , {i, Select[WLJS`PM`Packages // Keys, (MemberQ[whitelist, #] && WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], param])&]}] // Flatten;
 
-apiCall[request_, "/api/extensions/get/js/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
-    pmIncludes["js", Flatten[{body["name"]}] ]
+apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
+    pmIncludes["minjs", Flatten[{body["name"]}] ]
 ]
 
 apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
