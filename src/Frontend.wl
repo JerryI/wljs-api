@@ -45,7 +45,7 @@ apiCall[request_, "/api/frontendobjects/get/"] := With[{body = ImportString[Byte
                     promiseId = promise // First
                 },
                     Kernel`Async[k, With[{o = Notebook`Editor`FrontendObject`GetObject[uid]},
-                            EventFire[Internal`Kernel`Stdout[promiseId], Resolve, ExportString[o, "ExpressionJSON"] ];
+                            EventFire[Internal`Kernel`Stdout[promiseId], Resolve, ExportString[o, "ExpressionJSON", "Compact"->1] ];
                         ]
                     ];
                 ];
