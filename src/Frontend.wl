@@ -2,6 +2,7 @@ BeginPackage["Notebook`ExternalAPI`", {
     "JerryI`Notebook`", 
     "JerryI`Misc`Async`",
     "JerryI`Misc`Events`",
+    "JerryI`Notebook`Transactions`",
     "JerryI`Notebook`Evaluator`",
     "JerryI`Misc`Events`Promise`",
     "JerryI`Notebook`AppExtensions`",
@@ -50,9 +51,8 @@ apiCall[request_, "/api/transactions/create/"] := With[{body = ImportString[Byte
     With[{
         k = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Kernel"]) &]
     },
-        If[MissingQ[k], $Failed,
-            submitTransaction[body["Data"], k];
-            True
+        If[MissingQ[k], $Failed, 
+            submitTransaction[body["Data"], k]
         ]
     ]
 ]
@@ -94,9 +94,9 @@ apiCall[request_, "/api/transactions/list/"] := With[{},
     ]
 ]
 
-submitTransaction[data_String, kernel_] := With[{transaction = Transaction[]},
+submitTransaction[input_String, kernel_] := With[{transaction = Transaction[]},
    transactions = Append[transactions, transaction];
-   transaction["Data"] = data;
+   transaction["Data"] = input;
    transaction["State"] = "Evaluation";
    transaction["Result"] = {};   
    transaction["EvaluationContext"] = <||>;
@@ -127,6 +127,7 @@ submitTransaction[data_String, kernel_] := With[{transaction = Transaction[]},
 
    (* submit *)
    kernel["Container"][transaction];   
+   transaction["Hash"]
 ]
 
 
