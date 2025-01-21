@@ -19,7 +19,6 @@ Begin["`Internal`"]
 
 apiCall[request_] := With[{type = request["Path"]},
     Echo["API Request >> "<>type];
-    Echo[ToString[request, InputForm] ];
 
     ExportString[apiCall[request, type], "JSON"]
 ]
@@ -30,12 +29,17 @@ apiCall[request_, "/api/"] := {
     "/api/kernels/",
     "/api/transactions/",
     "/api/frontendobjects/",
-    "/api/extensions/"
+    "/api/extensions/",
+    "/api/ready/"
 }
+
+apiCall[request_, "/api/ready/"] := <|"ReadyQ" -> True|>
+
 
 apiCall[request_, "/api/frontendobjects/"] := {
     "/api/frontendobjects/get/"
 }
+
 
 objects = <||>;
 
@@ -257,7 +261,7 @@ apiCall[request_, "/api/extensions/"] := {
 
 apiCall[request_, "/api/extensions/list/"] := With[{},
     Map[Function[key, 
-        <|"name" -> key, "version" -> WLJS`PM`Packages[#, "version"]|>
+        <|"name" -> key, "version" -> WLJS`PM`Packages[key, "version"]|>
     ], 
         Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &] 
     ]
@@ -266,16 +270,16 @@ apiCall[request_, "/api/extensions/list/"] := With[{},
 pmIncludes[param_, whitelist_List] := 
 Table[ 
     Table[ 
-      FileNameJoin[{WLJS`PM`Packages[i, "name"], StringSplit[j, "/"]} // Flatten]
+      Import[FileNameJoin[{"wljs_packages", WLJS`PM`Packages[i, "name"], StringSplit[j, "/"]} // Flatten], "Text"] // URLEncode
     , {j, {WLJS`PM`Packages[i, "wljs-meta", param]} // Flatten} ]
 , {i, Select[WLJS`PM`Packages // Keys, (MemberQ[whitelist, #] && WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], param])&]}] // Flatten;
 
 apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
-    pmIncludes["minjs", Flatten[{body["name"]}] ]
+    pmIncludes["minjs", Flatten[{body}] ]
 ]
 
 apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
-    pmIncludes["styles", Flatten[{body["name"]}] ]
+    pmIncludes["styles", Flatten[{body}] ]
 ]
 
 

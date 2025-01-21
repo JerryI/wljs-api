@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textarea Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .state {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="state">
+            <strong>State:</strong> <span id="stateField">Waiting for wljs connection</span>
+        </div>
+
+        <textarea id="code_area" placeholder="Type your text here...">Plot[x, {x,0,1}]</textarea>
+
+        <div id="resultsDiv"></div>
+
+        <button id="submit_button" type="button">Submit</button>
+    </div>
+    <script type="module">
+        const stateField = document.getElementById("stateField");
+        const submitButton = document.getElementById("submit_button");
+        const codeArea = document.getElementById("code_area");
+        const resultsDiv = document.getElementById('resultsDiv')
+
+        // Utility function for delay
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        const checkConnection = async () => {
+          try {
+            const res = await fetch('http://127.0.0.1:20560/api/ready/', { method: 'POST' });
+            console.warn(res);
+            const r = await res.json();
+            if (!r.ReadyQ) {
+              await delay(300);
+              await checkConnection();
+            }
+          } catch (err) {
+            await delay(300);
+            await checkConnection();
+          }
+        };
+
+        const fetchExtensions = async () => {
+          try {
+            stateField.innerText = 'Fetching extensions...';
+        
+            // Fetch extensions list
+            const listRes = await fetch('http://127.0.0.1:20560/api/extensions/list/', { method: 'POST' });
+            const listData = await listRes.json();
+            console.log(listData);
+        
+            const exts = listData.map((e) => e.name);
+            console.log(exts);
+        
+            // Fetch minified JS
+            const jsRes = await fetch('http://127.0.0.1:20560/api/extensions/get/minjs/', {
+              method: 'POST',
+              body: JSON.stringify(exts),
+            });
+            const jsData = await jsRes.json();
+        
+            jsData.forEach((src) => {
+              const script = document.createElement('script');
+              script.type = "module";
+              script.innerHTML = decodeURIComponent(src);
+              document.head.appendChild(script);
+            });
+        
+            // Fetch styles
+            const styleRes = await fetch('http://127.0.0.1:20560/api/extensions/get/styles/', {
+              method: 'POST',
+              body: JSON.stringify(exts),
+            });
+            const styleData = await styleRes.json();
+        
+            styleData.forEach((src) => {
+              const style = document.createElement('style');
+              style.innerHTML = decodeURIComponent(src);
+              document.head.appendChild(style);
+            });
+        
+          } catch (err) {
+            console.error('Error fetching extensions:', err);
+          }
+        };
+
+        let targetKernel;
+
+        const findKernel = async () => {
+            const res = await fetch('http://127.0.0.1:20560/api/kernels/list/', {
+                method:'POST'
+            });
+            
+            const body = await res.json();
+   
+
+            const valid = body.filter((el) => el.ContainerReadyQ);
+            if (valid.length == 0) {
+                await delay(300);
+                return await findKernel();
+            }
+
+            return valid[0].Hash;
+        }
+
+        const getResult = async (kernel, transaction) => {
+            await delay(300);
+
+            let result = await fetch('http://127.0.0.1:20560/api/transactions/get/', {
+                method:'POST',
+                body:JSON.stringify({
+                    'Hash': transaction
+                })
+            });
+
+            result = await result.json();
+            console.log(result);
+
+            if (!(result.State == 'Idle')) result = await getResult(kernel, transaction);
+
+            
+            return result.Result;
+
+        }
+
+        const setUpServerAPI = () => {
+
+            const getObject = async (kernel, uid) => {
+                let r = await fetch('http://127.0.0.1:20560/api/frontendobjects/get/', {
+                    method:'POST',
+                    body:JSON.stringify({
+                      'UId': uid,
+                      "Kernel": kernel
+                    })
+                });
+
+                r = await r.json();
+
+                if (r.Resolved == true) {
+                    return JSON.parse(r.Data);
+                }
+
+                await delay(300);
+
+                return await getObject(kernel, uid)
+
+
+
+            }
+
+            //internal calss for managing FrontendObjects
+            //it has to be defined, cuz impementation depends on the env of execution
+            window.ObjectStorage = class {
+                refs = {}
+                uid = ''
+                cached = false
+                cache = []
+                    
+                constructor(uid) {
+                  this.uid = uid;
+                  window.ObjectHashMap[uid] = this;
+                }           
+            
+                //assign an instance of FrontEndExecutable to it
+                assign(obj) {
+                  this.refs[obj.instance] = obj;
+                }         
+            
+                //remove a reference to the instance of FrontEndExecutable
+                dropref(obj) {
+                  delete this.refs[obj.instance];
+                }         
+                 
+                get() {
+                  if (this.cached) return this.cache;
+                  const self = this;
+                  const promise = new Deferred();
+        
+                  getObject(targetKernel, self.uid).then((result) => {
+                    self.cache = result;
+                    promise.resolve(self.cache);
+                  }, (rejected) => {
+                    console.warn('Rejected! Not found');
+                    promise.reject();
+                  })
+              
+                  return promise.promise;
+                }
+            }
+        }
+        
+        var initializationComplete = async () => {
+
+            setUpServerAPI();
+
+            console.warn('Initialization complete!');
+            stateField.innerText = 'Connecting to Kernel';
+            
+            const kernel = await findKernel();
+            targetKernel = kernel;
+            console.log('Obtained Kernel '+kernel);
+            stateField.innerText = 'Ready!';
+            
+            submitButton.addEventListener('click', async () => {
+
+                const trimmed = codeArea.value.trim();
+                if (trimmed.length == 0) return;
+
+                let transaction = await fetch('http://127.0.0.1:20560/api/transactions/create/', {
+                    method:'POST',
+                    body:JSON.stringify({
+                        'Kernel': kernel,
+                        'Data': trimmed
+                    })
+                });
+
+                transaction = await transaction.json();
+                stateField.innerText = 'Evaluation...';
+                
+                const results = await getResult(kernel, transaction);
+
+                console.warn(results);
+                stateField.innerText = 'Ready!';
+                
+                results.forEach((data) => {
+                    
+                    const display = data.Display || 'codemirror';
+                    const parentelement = document.createElement('div');
+                    resultsDiv.appendChild(parentelement);
+
+                    const origin = {
+                        element: parentelement
+                    };
+
+                    const cell = new window.SupportedCells[display].view(origin, data.Data);
+
+
+                    //to remove use
+
+                    //cell.dispose()
+                })
+
+            })
+        }
+
+
+        (async () => {
+          await delay(300);
+          await checkConnection();
+          await fetchExtensions();
+          await initializationComplete();
+        })();        
+    </script>
+</body>
+</html>
