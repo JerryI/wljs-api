@@ -188,30 +188,8 @@
 
             }
 
-            //internal calss for managing FrontendObjects
-            //it has to be defined, cuz impementation depends on the env of execution
-            window.ObjectStorage = class {
-                refs = {}
-                uid = ''
-                cached = false
-                cache = []
-                    
-                constructor(uid) {
-                  this.uid = uid;
-                  window.ObjectHashMap[uid] = this;
-                }           
-            
-                //assign an instance of FrontEndExecutable to it
-                assign(obj) {
-                  this.refs[obj.instance] = obj;
-                }         
-            
-                //remove a reference to the instance of FrontEndExecutable
-                dropref(obj) {
-                  delete this.refs[obj.instance];
-                }         
-                 
-                get() {
+            //implemetation of get method depends on execution env
+            window.ObjectStorage.prototype.get = function () {
                   if (this.cached) return this.cache;
                   const self = this;
                   const promise = new Deferred();
@@ -226,8 +204,7 @@
               
                   return promise.promise;
                 }
-            }
-        }
+          }
         
         var initializationComplete = async () => {
 
