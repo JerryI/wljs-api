@@ -19,8 +19,18 @@ Begin["`Internal`"]
 
 apiCall[request_] := With[{type = request["Path"]},
     Echo["API Request >> "<>type];
-
-    ExportString[apiCall[request, type], "JSON"]
+    With[{r = ExportByteArray[apiCall[request, type], "JSON"]},
+        <|
+            "Body" -> r, 
+            "Code" -> 200, 
+            "Headers" -> <|
+                "Content-Length" -> Length[r], 
+                "Connection"-> "Keep-Alive", 
+                "Keep-Alive" -> "timeout=5, max=1000", 
+                "Access-Control-Allow-Origin" -> "*"
+            |>
+        |>
+    ]
 ]
 
 apiCall[_, _] := "Undefined API pattern"
@@ -289,7 +299,7 @@ apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[Byt
 ]
 
 apiCall[request_, "/api/extensions/bundle/minjs/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &] },
-    StringJoin["{\n", StringRiffle[pmIncludesNoEncode["minjs", Flatten[{list}] ], ";;\n}{\n"], "\n}"] // URLEncode
+    StringJoin["{\r\n", StringRiffle[pmIncludesNoEncode["minjs", Flatten[{list}] ], ";;\r\n};\r\n{\r\n"], "\r\n}"] // URLEncode
 ]
 
 apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
@@ -297,7 +307,7 @@ apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[By
 ]
 
 apiCall[request_, "/api/extensions/bundle/styles/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &]},
-    StringRiffle[pmIncludesNoEncode["styles", Flatten[{list}] ], "\n\n"] // URLEncode
+    StringRiffle[pmIncludesNoEncode["styles", Flatten[{list}] ], "\r\n\r\n"] // URLEncode
 ]
 
 
