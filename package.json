@@ -1,6 +1,6 @@
 {
     "name": "wljs-api",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "scripts": {
         "build-css": "npx tailwindcss build Styles/Tailwind.css -o Styles/Optimized.css",
         "build": "node --max-old-space-size=8192 ./node_modules/.bin/rollup --config rollup.config.mjs"

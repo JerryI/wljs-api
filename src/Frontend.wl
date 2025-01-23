@@ -298,8 +298,12 @@ apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[Byt
     pmIncludes["minjs", Flatten[{body}] ]
 ]
 
-apiCall[request_, "/api/extensions/bundle/minjs/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &] },
-    StringJoin["{\r\n", StringRiffle[pmIncludesNoEncode["minjs", Flatten[{list}] ], ";;\r\n};\r\n{\r\n"], "\r\n}"] // URLEncode
+inBlackList[key_] := MemberQ[{"wljs-markdown-support", "wljs-plotly", "wljs-wxf-accelerator", "wljs-html-support", "wljs-js-support", "wljs-sharedlib-mk", "wljs-mermaid-support", "wljs-reveal"}, key]
+
+globalWindow = ""
+
+apiCall[request_, "/api/extensions/bundle/minjs/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"] && !inBlackList[#]) &] },
+    StringJoin[globalWindow, "\r\n{\r\n", StringRiffle[pmIncludesNoEncode["minjs", Flatten[{list}] ], ";;\r\n};\r\n{\r\n"], "\r\n}"] // URLEncode
 ]
 
 apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
