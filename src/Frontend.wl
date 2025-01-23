@@ -256,7 +256,9 @@ apiCall[request_, "/api/kernels/deinit/"] := With[{body = ImportString[ByteArray
 apiCall[request_, "/api/extensions/"] := {
     "/api/extensions/list/",
     "/api/extensions/get/minjs/",
-    "/api/extensions/get/styles/"
+    "/api/extensions/bundle/minjs/",
+    "/api/extensions/get/styles/",
+    "/api/extensions/bundle/styles/"
 }
 
 apiCall[request_, "/api/extensions/list/"] := With[{},
@@ -274,13 +276,31 @@ Table[
     , {j, {WLJS`PM`Packages[i, "wljs-meta", param]} // Flatten} ]
 , {i, Select[WLJS`PM`Packages // Keys, (MemberQ[whitelist, #] && WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], param])&]}] // Flatten;
 
+pmIncludesNoEncode[param_, whitelist_List] := 
+Table[ 
+    Table[ 
+      Import[FileNameJoin[{"wljs_packages", WLJS`PM`Packages[i, "name"], StringSplit[j, "/"]} // Flatten], "Text"] 
+    , {j, {WLJS`PM`Packages[i, "wljs-meta", param]} // Flatten} ]
+, {i, Select[WLJS`PM`Packages // Keys, (MemberQ[whitelist, #] && WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], param])&]}] // Flatten;
+
+
 apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     pmIncludes["minjs", Flatten[{body}] ]
+]
+
+apiCall[request_, "/api/extensions/bundle/minjs/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &] },
+    StringJoin["{\n", StringRiffle[pmIncludesNoEncode["minjs", Flatten[{list}] ], ";;\n}{\n"], "\n}"] // URLEncode
 ]
 
 apiCall[request_, "/api/extensions/get/styles/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     pmIncludes["styles", Flatten[{body}] ]
 ]
+
+apiCall[request_, "/api/extensions/bundle/styles/"] := With[{list = Select[WLJS`PM`Packages // Keys, (WLJS`PM`Packages[#, "enabled"] && KeyExistsQ[WLJS`PM`Packages[#, "wljs-meta"], "minjs"]) &]},
+    StringRiffle[pmIncludesNoEncode["styles", Flatten[{list}] ], "\n\n"] // URLEncode
+]
+
+
 
 
 With[{http = AppExtensions`HTTPHandler},
