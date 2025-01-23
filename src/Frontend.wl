@@ -298,7 +298,7 @@ apiCall[request_, "/api/extensions/get/minjs/"] := With[{body = ImportString[Byt
     pmIncludes["minjs", Flatten[{body}] ]
 ]
 
-inBlackList[key_] := MemberQ[{"wljs-markdown-support", "wljs-plotly", "wljs-wxf-accelerator", "wljs-html-support", "wljs-js-support", "wljs-sharedlib-mk", "wljs-mermaid-support", "wljs-reveal"}, key]
+inBlackList[key_] := MemberQ[{"wljs-markdown-support", "wljs-plotly", "wljs-wxf-accelerator", "wljs-html-support", "wljs-js-support", "wljs-sharedlib-mk", "wljs-mermaid-support", "wljs-revealjs"}, key]
 
 globalWindow = ""
 
