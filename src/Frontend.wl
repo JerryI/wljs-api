@@ -261,7 +261,7 @@ apiCall[request_, "/api/kernels/deinit/"] := With[{body = ImportString[ByteArray
     ]
 ];
 
-{deinitKernel, initKernel}           = ImportComponent["KernelUtils.wl"];
+{deinitKernel, initKernel}           = ImportComponent["Frontend/KernelUtils.wl"];
 
 
 apiCall[request_, "/api/extensions/"] := {
