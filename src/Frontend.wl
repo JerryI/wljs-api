@@ -8,6 +8,7 @@ BeginPackage["Notebook`ExternalAPI`", {
     "JerryI`Notebook`AppExtensions`",
     "JerryI`Misc`WLJS`Transport`",
     "JerryI`WLJSPM`",
+    "JerryI`WLX`Importer`",
     "KirillBelov`HTTPHandler`",
     "KirillBelov`HTTPHandler`Extensions`",
     "KirillBelov`Internal`",
