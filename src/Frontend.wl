@@ -1,22 +1,27 @@
-BeginPackage["Notebook`ExternalAPI`", {
-    "JerryI`Notebook`", 
+BeginPackage["CoffeeLiqueur`Extensions`API`", {
     "JerryI`Misc`Async`",
     "JerryI`Misc`Events`",
-    "JerryI`Notebook`Transactions`",
-    "JerryI`Notebook`Evaluator`",
+    "CoffeeLiqueur`Notebook`Transactions`",
     "JerryI`Misc`Events`Promise`",
-    "JerryI`Notebook`AppExtensions`",
     "JerryI`Misc`WLJS`Transport`",
     "JerryI`WLJSPM`",
     "JerryI`WLX`Importer`",
     "KirillBelov`HTTPHandler`",
     "KirillBelov`HTTPHandler`Extensions`",
     "KirillBelov`Internal`",
-    "JerryI`Notebook`Kernel`",
-    "Notebook`Editor`FrontendObject`"
+    "CoffeeLiqueur`Extensions`FrontendObject`"
 }]
 
+
 Begin["`Internal`"]
+
+Needs["CoffeeLiqueur`Notebook`Cells`" -> "cell`"];
+Needs["CoffeeLiqueur`Notebook`" -> "nb`"];
+
+Needs["CoffeeLiqueur`Notebook`Kernel`" -> "GenericKernel`"];
+Needs["CoffeeLiqueur`Notebook`Evaluator`" -> "StandardEvaluator`"];
+Needs["CoffeeLiqueur`Notebook`AppExtensions`" -> "AppExtensions`"];
+
 
 apiCall[request_] := With[{type = request["Path"]},
     Echo["API Request >> "<>type];
@@ -65,7 +70,7 @@ apiCall[request_, "/api/frontendobjects/get/"] := With[{body = ImportString[Byte
                 With[{
                     promiseId = promise // First
                 },
-                    Kernel`Async[k, With[{o = Notebook`Editor`FrontendObject`GetObject[uid]},
+                    GenericKernel`Async[k, With[{o = CoffeeLiqueur`Extensions`FrontendObject`Internal`GetObject[uid]},
                             EventFire[Internal`Kernel`Stdout[promiseId], Resolve, ExportString[o, "ExpressionJSON", "Compact"->1] ];
                         ]
                     ];
@@ -220,7 +225,7 @@ apiCall[request_, "/api/kernels/get/"] := With[{body = ImportString[ByteArrayToS
 apiCall[request_, "/api/kernels/restart/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     With[{m = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Hash"]) &]},
         If[MissingQ[m], $Failed,
-            Kernel`Restart[m];
+            GenericKernel`Restart[m];
             True
         ]
     ]
@@ -237,7 +242,7 @@ apiCall[request_, "/api/kernels/unlink/"] := With[{body = ImportString[ByteArray
 apiCall[request_, "/api/kernels/abort/"] := With[{body = ImportString[ByteArrayToString[request["Body"] ], "RawJSON"]},
     With[{m = SelectFirst[AppExtensions`KernelList, (#["Hash"] === body["Hash"]) &]},
         If[MissingQ[m], $Failed,
-            Kernel`Abort[m];
+            GenericKernel`AbortEvaluation[m];
             True
         ]
     ]
